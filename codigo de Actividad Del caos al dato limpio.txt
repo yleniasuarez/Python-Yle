@@ -1,0 +1,54 @@
+# 1. Carga y Exploración
+from google.colab import drive
+drive.mount('/content/drive')
+
+import pandas as pd
+
+# Ajusta esta ruta según corresponda
+ruta = '/content/drive/MyDrive/clientes_sucios_grande.csv'
+datos = pd.read_csv(ruta, encoding='utf-8')
+
+print(datos.head())
+print(datos.info())
+
+# 2. Limpieza
+datos = datos.drop_duplicates()
+
+# --- LIMPIEZA DE LA EDAD ---
+datos['Edad'] = pd.to_numeric(datos['Edad'], errors='coerce')
+mediana_edad = datos.loc[datos['Edad'] >= 0, 'Edad'].median()
+datos.loc[datos['Edad'] < 0, 'Edad'] = mediana_edad
+datos['Edad'] = datos['Edad'].fillna(mediana_edad).astype(int)
+
+# --- LIMPIEZA DE LOS INGRESOS ---
+datos['Ingresos'] = pd.to_numeric(datos['Ingresos'], errors='coerce')
+media_ingresos = datos.loc[datos['Ingresos'] >= 0, 'Ingresos'].mean()
+datos['Ingresos'] = datos['Ingresos'].fillna(media_ingresos).round(2)
+
+
+# --- LIMPIEZA DE CATEGORÍAS ---
+datos['Ciudad'] = datos['Ciudad'].fillna('Desconocido')
+datos['Estado Civil'] = datos['Estado Civil'].fillna('Desconocido')
+
+# 3. Enriquecimiento
+datos['Nivel_Ingreso'] = pd.cut(
+    datos['Ingresos'],
+    bins=[-float('inf'), 2000, 4000, float('inf')],
+    labels=['Bajo', 'Medio', 'Alto']
+)
+
+# 4. Preprocesamiento
+#normalizar ingresos entre 0 y 1
+from sklearn.preprocessing import MinMaxScaler
+
+scaler = MinMaxScaler()
+datos['Ingresos_Normalizados'] = scaler.fit_transform(datos[['Ingresos']])
+datos['Ingresos_Normalizados'] = datos['Ingresos_Normalizados'].round(2)
+
+# One-Hot Encoding de la columna Ciudad
+datos = pd.get_dummies(datos, columns=['Ciudad'], prefix='Ciudad')
+
+# 5. Guardar los datos limpios
+datos.to_csv('clientes_limpios.csv', index=False, decimal=",")
+
+
